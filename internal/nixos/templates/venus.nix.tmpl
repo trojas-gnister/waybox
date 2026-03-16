@@ -1,0 +1,17 @@
+{{define "venus"}}
+{{- if .VenusEnabled}}
+
+  # Venus Vulkan GPU acceleration
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+    extraPackages = with pkgs; [ mesa vulkan-loader ];
+    extraPackages32 = with pkgs.pkgsi686Linux; [ mesa vulkan-loader ];
+  };
+
+  environment.variables = {
+    MESA_LOADER_DRIVER_OVERRIDE = "virtio_gpu";
+    VK_DRIVER_FILES = "${pkgs.mesa.drivers}/share/vulkan/icd.d/virtio_icd.x86_64.json";
+  };
+{{- end}}
+{{- end}}

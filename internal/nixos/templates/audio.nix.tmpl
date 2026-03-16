@@ -1,0 +1,11 @@
+{{define "audio"}}
+{{- if .AudioEnabled}}
+
+  # PipeWire audio
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    pulse.enable = true;
+  };
+{{- end}}
+{{- end}}

@@ -1,0 +1,31 @@
+{{define "waypipe"}}
+{{- if not .Config.Headless}}
+
+  # Waypipe display server (vsock)
+  systemd.user.services."waypipe-server" = {
+    description = "Waypipe Wayland display server over vsock";
+    wantedBy = [ "default.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.waypipe}/bin/waypipe --no-gpu server --vsock --socket 0:{{.WaypipePort}}";
+      Restart = "always";
+      RestartSec = 2;
+    };
+  };
+{{- if .AudioEnabled}}
+
+  # Audio bridge to host via vsock
+  systemd.services."audio-bridge" = {
+    description = "Forward audio to host via vsock";
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.socat}/bin/socat UNIX-LISTEN:/tmp/pulse-bridge,fork VSOCK-CONNECT:2:{{.AudioPort}}";
+      Restart = "always";
+      RestartSec = 2;
+      User = "user";
+    };
+  };
+
+  environment.variables.PULSE_SERVER = "unix:/tmp/pulse-bridge";
+{{- end}}
+{{- end}}
+{{- end}}

@@ -1,0 +1,10 @@
+{{define "virtiofs"}}
+{{- range .Config.SharedFolders}}
+
+  fileSystems."{{.GuestPath}}" = {
+    device = "{{.Tag}}";
+    fsType = "virtiofs";
+    options = [ "defaults" "nofail"{{if .ReadOnly}} "ro"{{end}} ];
+  };
+{{- end}}
+{{- end}}

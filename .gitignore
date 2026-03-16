@@ -1,0 +1,21 @@
+# Binaries
+waybox
+*.exe
+
+# Go build cache
+/vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test output
+*.test
+coverage.out

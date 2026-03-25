@@ -8,6 +8,19 @@
   environment.etc."waybox-launcher.sh" = {
     text = ''
       #!/bin/sh
+      # Set up runtime directory for Wayland
+      export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+      mkdir -p "$XDG_RUNTIME_DIR"
+
+      # Force Wayland for GTK, Qt, and Chromium/Electron apps
+      export GDK_BACKEND=wayland
+      export QT_QPA_PLATFORM=wayland
+      export CLUTTER_BACKEND=wayland
+      export SDL_VIDEODRIVER=wayland
+      export MOZ_ENABLE_WAYLAND=1
+      export NIXOS_OZONE_WL=1
+      export ELECTRON_OZONE_PLATFORM_HINT=wayland
+
       read -r APP
       exec ${pkgs.waypipe}/bin/waypipe --vsock --socket 2:{{.WaypipePort}} server -- $APP
     '';
@@ -25,6 +38,11 @@
       User = "user";
     };
   };
+
+  # Ensure XDG_RUNTIME_DIR exists for the user
+  systemd.tmpfiles.rules = [
+    "d /run/user/1000 0700 user user -"
+  ];
 {{- if .AudioEnabled}}
 
   # Audio bridge to host via vsock

@@ -8,9 +8,11 @@
   environment.etc."waybox-launcher.sh" = {
     text = ''
       #!/bin/sh
-      # Set up runtime directory for Wayland
+      # Set up environment for Wayland apps
       export XDG_RUNTIME_DIR="/run/user/$(id -u)"
       mkdir -p "$XDG_RUNTIME_DIR"
+      export PATH="/run/current-system/sw/bin:$PATH"
+      export NIXOS_OZONE_WL=1
 
       read -r APP
       exec ${pkgs.waypipe}/bin/waypipe --vsock --socket 2:{{.WaypipePort}} server -- $APP

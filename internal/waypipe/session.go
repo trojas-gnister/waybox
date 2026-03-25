@@ -48,8 +48,9 @@ func StartSession(ctx context.Context, vmName, app string, cid uint32, ports Por
 	}
 
 	// Start waypipe client on host (LISTENS for guest server connection)
+	// Options must come BEFORE the mode subcommand
 	socket := fmt.Sprintf("%d:%d", cid, ports.Waypipe)
-	waypipeCmd := exec.CommandContext(ctx, "waypipe", "--no-gpu", "client", "--vsock", "--socket", socket)
+	waypipeCmd := exec.CommandContext(ctx, "waypipe", "--no-gpu", "--vsock", "--socket", socket, "client")
 	waypipeCmd.Stdout = nil
 	waypipeCmd.Stderr = nil
 

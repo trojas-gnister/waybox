@@ -145,26 +145,40 @@ func (p *Provisioner) checkPrerequisites() error {
 }
 
 func (p *Provisioner) ensureDefaultNetwork() error {
-	// Check if default network is active
+	// Check if default network exists and is active
 	output, err := p.Virsh.RunSudoChecked("net-info", "default")
 	if err != nil {
 		// Network doesn't exist — try to define it
 		slog.Info("defining default network")
+		defined := false
 		for _, path := range []string{
 			"/usr/share/libvirt/networks/default.xml",
 			"/etc/libvirt/qemu/networks/default.xml",
 		} {
 			if err := exec.Command("sudo", "virsh", "-c", "qemu:///system", "net-define", path).Run(); err == nil {
+				defined = true
 				break
 			}
 		}
+		if !defined {
+			return fmt.Errorf("libvirt default network not found\n  Try: sudo virsh net-define /usr/share/libvirt/networks/default.xml")
+		}
+		output, _ = p.Virsh.RunSudoChecked("net-info", "default")
 	}
 
-	// Check if active
-	if output != "" && strings.Contains(output, "Active:") && !strings.Contains(output, "Active:          yes") {
+	// Parse "Active:" line — look for "yes" anywhere on that line
+	active := false
+	for _, line := range strings.Split(output, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "Active:") {
+			active = strings.Contains(line, "yes")
+			break
+		}
+	}
+
+	if !active {
 		slog.Info("starting default network")
 		if _, err := p.Virsh.RunSudoChecked("net-start", "default"); err != nil {
-			return fmt.Errorf("failed to start default network\n  Try: sudo virsh net-start default\n  Or:  sudo virsh net-define /usr/share/libvirt/networks/default.xml && sudo virsh net-start default")
+			return fmt.Errorf("failed to start default network\n  Try: sudo virsh net-start default")
 		}
 		p.Virsh.RunSudoChecked("net-autostart", "default")
 	}

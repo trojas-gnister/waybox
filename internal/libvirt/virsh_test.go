@@ -82,14 +82,20 @@ func TestParseVsockCID(t *testing.T) {
 		wantOK  bool
 	}{
 		{
-			"standard vsock CID",
+			"address attribute (libvirt default)",
+			`<vsock model='virtio'><cid auto='yes' address='3'/></vsock>`,
+			3,
+			true,
+		},
+		{
+			"value attribute",
 			`<vsock model='virtio'><cid auto='yes' value='3'/></vsock>`,
 			3,
 			true,
 		},
 		{
-			"higher CID",
-			`<vsock><cid auto='yes' value='42'/></vsock>`,
+			"higher CID with address",
+			`<vsock><cid auto='yes' address='42'/></vsock>`,
 			42,
 			true,
 		},

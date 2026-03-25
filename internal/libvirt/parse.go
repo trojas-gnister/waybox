@@ -47,32 +47,41 @@ func ParseIPFromDomifaddrAgent(output string) string {
 }
 
 // ParseVsockCID extracts the vsock CID from a libvirt domain XML string.
-// Looks for: <cid auto='yes' value='N'/>
+// Looks for: <cid auto='yes' address='N'/> or <cid auto='yes' value='N'/>
 func ParseVsockCID(xml string) (uint32, bool) {
-	// Simple string parsing — look for cid value in vsock section
 	idx := strings.Index(xml, "<cid ")
 	if idx < 0 {
 		return 0, false
 	}
 	snippet := xml[idx:]
-	valIdx := strings.Index(snippet, "value='")
-	if valIdx < 0 {
-		return 0, false
-	}
-	start := valIdx + len("value='")
-	end := strings.Index(snippet[start:], "'")
-	if end < 0 {
-		return 0, false
-	}
-	cidStr := snippet[start : start+end]
-	var cid uint32
-	for _, c := range cidStr {
-		if c < '0' || c > '9' {
-			return 0, false
+
+	// Try both "address=" and "value=" — libvirt uses "address" in practice
+	for _, attr := range []string{"address='", `address="`, "value='", `value="`} {
+		attrIdx := strings.Index(snippet, attr)
+		if attrIdx < 0 {
+			continue
 		}
-		cid = cid*10 + uint32(c-'0')
+		start := attrIdx + len(attr)
+		// Find closing quote (either ' or ")
+		quote := attr[len(attr)-1]
+		end := strings.IndexByte(snippet[start:], quote)
+		if end < 0 {
+			continue
+		}
+		cidStr := snippet[start : start+end]
+		var cid uint32
+		for _, c := range cidStr {
+			if c < '0' || c > '9' {
+				cid = 0
+				break
+			}
+			cid = cid*10 + uint32(c-'0')
+		}
+		if cid > 0 {
+			return cid, true
+		}
 	}
-	return cid, true
+	return 0, false
 }
 
 func isValidIPv4(ip string) bool {

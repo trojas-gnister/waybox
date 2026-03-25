@@ -47,9 +47,10 @@ func StartSession(ctx context.Context, vmName, app string, cid uint32, ports Por
 		return nil, fmt.Errorf("starting audio tunnel: %w", err)
 	}
 
-	// Start waypipe client on host (LISTENS for guest server connection)
-	// Options must come BEFORE the mode subcommand
-	socket := fmt.Sprintf("%d:%d", cid, ports.Waypipe)
+	// Start waypipe client on host (LISTENS on vsock port)
+	// Client only needs the port — it listens for any guest connection.
+	// Options must come BEFORE the mode subcommand.
+	socket := fmt.Sprintf("%d", ports.Waypipe)
 	waypipeCmd := exec.CommandContext(ctx, "waypipe", "--no-gpu", "--vsock", "--socket", socket, "client")
 	waypipeCmd.Stdout = nil
 	waypipeCmd.Stderr = nil

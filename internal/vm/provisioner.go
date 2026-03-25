@@ -103,6 +103,7 @@ func (p *Provisioner) checkPrerequisites() error {
 		{"qemu-system-x86_64", "sudo pacman -S qemu-desktop"},
 		{"qemu-img", "sudo pacman -S qemu-img"},
 		{"nixos-generate", "nix-env -iA nixpkgs.nixos-generators"},
+		{"dnsmasq", "sudo pacman -S dnsmasq"},
 		{"waypipe", "sudo pacman -S waypipe"},
 		{"socat", "sudo pacman -S socat"},
 	}

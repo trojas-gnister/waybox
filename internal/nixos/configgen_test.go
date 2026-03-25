@@ -76,7 +76,7 @@ func TestGenerateConfigurationNix_BasicStructure(t *testing.T) {
 	shouldNotContain := []string{
 		"hardware.graphics",
 		"services.pipewire",
-		"waypipe-server",
+		"waybox-launcher",
 		"autologinUser",
 	}
 	for _, s := range shouldNotContain {
@@ -103,7 +103,7 @@ func TestGenerateConfigurationNix_GUIMode(t *testing.T) {
 		"hardware.graphics",
 		"MESA_LOADER_DRIVER_OVERRIDE",
 		"services.pipewire",
-		"waypipe-server",
+		"waybox-launcher",
 		"autologinUser",
 		"waypipe",
 		"socat",

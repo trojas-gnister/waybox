@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"os/signal"
 	"time"
 
@@ -54,9 +53,10 @@ func runLaunch(cmd *cobra.Command, args []string) error {
 	}
 	slog.Info("vsock CID", "cid", cid)
 
-	// Wait for vsock connectivity
-	if err := waitForVsock(cid, cfg.WaypipePort); err != nil {
-		return fmt.Errorf("waiting for vsock: %w", err)
+	// Wait for guest launcher daemon to be ready
+	fmt.Printf("Waiting for VM %s to be ready...\n", vmName)
+	if err := waypipe.WaitForLauncher(cid, config.DefaultLauncherPort, 120*time.Second); err != nil {
+		return err
 	}
 
 	// Set up signal handling for graceful shutdown
@@ -65,8 +65,9 @@ func runLaunch(cmd *cobra.Command, args []string) error {
 
 	// Start waypipe session + audio tunnel
 	ports := waypipe.Ports{
-		Waypipe: cfg.WaypipePort,
-		Audio:   cfg.AudioPort,
+		Waypipe:  cfg.WaypipePort,
+		Audio:    cfg.AudioPort,
+		Launcher: config.DefaultLauncherPort,
 	}
 
 	session, err := waypipe.StartSession(ctx, vmName, app, cid, ports)
@@ -74,19 +75,14 @@ func runLaunch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("Launched %s in VM %s (CID %d). Press Ctrl+C to stop.\n", app, vmName, cid)
+	fmt.Printf("Launched %s in VM %s. Press Ctrl+C to stop.\n", app, vmName)
 
 	// Block until app exits or user interrupts
 	if err := session.Wait(); err != nil {
-		// Context cancelled (Ctrl+C) is not an error
-		if ctx.Err() != nil {
-			fmt.Println("\nSession ended.")
-			return nil
-		}
 		return err
 	}
 
-	fmt.Println("App exited.")
+	fmt.Println("Session ended.")
 	return nil
 }
 
@@ -102,22 +98,4 @@ func getVsockCID(virsh libvirt.Virsh, vmName string) (uint32, error) {
 	}
 
 	return 0, fmt.Errorf("vsock CID not found in VM XML — is vsock enabled?")
-}
-
-// waitForVsock polls vsock connectivity using socat.
-func waitForVsock(cid uint32, port uint32) error {
-	slog.Debug("waiting for vsock connectivity", "cid", cid, "port", port)
-
-	for i := 0; i < 30; i++ {
-		// Try to connect briefly with socat
-		cmd := exec.Command("socat", "-T1",
-			fmt.Sprintf("VSOCK-CONNECT:%d:%d", cid, port),
-			"STDOUT")
-		if err := cmd.Run(); err == nil {
-			slog.Debug("vsock connected")
-			return nil
-		}
-		time.Sleep(2 * time.Second)
-	}
-	return fmt.Errorf("timeout waiting for vsock CID %d port %d", cid, port)
 }

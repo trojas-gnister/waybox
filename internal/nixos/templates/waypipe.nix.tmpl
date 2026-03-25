@@ -1,14 +1,28 @@
 {{define "waypipe"}}
 {{- if not .Config.Headless}}
 
-  # Waypipe display server (vsock)
-  systemd.user.services."waypipe-server" = {
-    description = "Waypipe Wayland display server over vsock";
-    wantedBy = [ "default.target" ];
+  # Waybox app launcher daemon (vsock)
+  # Listens on vsock port {{.LauncherPort}} for app commands from the host.
+  # When a command is received, spawns waypipe server connecting back to
+  # the host's waypipe client on port {{.WaypipePort}}.
+  environment.etc."waybox-launcher.sh" = {
+    text = ''
+      #!/bin/sh
+      read -r APP
+      exec ${pkgs.waypipe}/bin/waypipe --vsock --socket 2:{{.WaypipePort}} server -- $APP
+    '';
+    mode = "0755";
+  };
+
+  systemd.services."waybox-launcher" = {
+    description = "Waybox app launcher over vsock";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
     serviceConfig = {
-      ExecStart = "${pkgs.waypipe}/bin/waypipe --no-gpu server --vsock --socket 0:{{.WaypipePort}}";
+      ExecStart = "${pkgs.socat}/bin/socat VSOCK-LISTEN:{{.LauncherPort}},reuseaddr,fork EXEC:/etc/waybox-launcher.sh";
       Restart = "always";
       RestartSec = 2;
+      User = "user";
     };
   };
 {{- if .AudioEnabled}}

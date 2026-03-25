@@ -44,8 +44,9 @@ const (
 	GPUVendorNVIDIA = "10de"
 	VulkanICDDir    = "/usr/share/vulkan/icd.d"
 
-	DefaultWaypipePort = 1100
-	DefaultAudioPort   = 1200
+	DefaultWaypipePort  = 1100
+	DefaultAudioPort    = 1200
+	DefaultLauncherPort = 1300
 )
 
 // Errors

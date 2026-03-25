@@ -33,6 +33,7 @@ type NixTemplateData struct {
 	CustomNixConfig string
 	WaypipePort    uint32
 	AudioPort      uint32
+	LauncherPort   uint32
 }
 
 // GenerateConfigurationNix produces a complete configuration.nix from the given config.
@@ -77,6 +78,7 @@ func GenerateConfigurationNix(cfg *config.AppVMConfig) (string, error) {
 		CustomNixConfig: customNix,
 		WaypipePort:     cfg.WaypipePort,
 		AudioPort:       cfg.AudioPort,
+		LauncherPort:    config.DefaultLauncherPort,
 	}
 
 	funcMap := template.FuncMap{

@@ -49,12 +49,15 @@ func (p *Provisioner) ProvisionVM() error {
 
 	// Import VM via virt-install
 	if err := p.importVM(qcow2Path); err != nil {
+		// Clean up partial VM on failure
+		p.cleanup()
 		return fmt.Errorf("importing VM: %w", err)
 	}
 
 	// USB permanent passthrough
 	if len(p.Config.USBDevices) > 0 && !p.Config.USBHotplug {
 		if err := SetupUSBPermanent(p.Virsh, p.Config); err != nil {
+			p.cleanup()
 			return fmt.Errorf("USB passthrough: %w", err)
 		}
 	}
@@ -63,6 +66,7 @@ func (p *Provisioner) ProvisionVM() error {
 	if p.Config.NetworkMode.Mode == "None" {
 		slog.Info("removing network interface (airgapped mode)")
 		if err := RemoveNetworkInterface(p.Virsh, p.Config.Name); err != nil {
+			p.cleanup()
 			return fmt.Errorf("removing network: %w", err)
 		}
 	}
@@ -94,30 +98,41 @@ func (p *Provisioner) checkPrerequisites() error {
 		cmd  string
 		hint string
 	}{
-		{"virsh", "Install libvirt"},
-		{"virt-install", "Install virt-install"},
+		{"virsh", "sudo pacman -S libvirt"},
+		{"virt-install", "sudo pacman -S virt-install"},
+		{"qemu-system-x86_64", "sudo pacman -S qemu-desktop"},
+		{"qemu-img", "sudo pacman -S qemu-img"},
 		{"nixos-generate", "nix-env -iA nixpkgs.nixos-generators"},
-		{"waypipe", "Install waypipe"},
-		{"socat", "Install socat"},
+		{"waypipe", "sudo pacman -S waypipe"},
+		{"socat", "sudo pacman -S socat"},
 	}
 
 	for _, r := range required {
 		if _, err := exec.LookPath(r.cmd); err != nil {
-			return fmt.Errorf("prerequisite missing: %s (%s)", r.cmd, r.hint)
+			return fmt.Errorf("prerequisite missing: %s\n  Install with: %s", r.cmd, r.hint)
 		}
 		slog.Debug("found", "cmd", r.cmd)
 	}
 
-	// Check libvirtd
+	// Check libvirtd is running
 	output, err := exec.Command("systemctl", "is-active", "libvirtd").Output()
 	if err != nil || strings.TrimSpace(string(output)) != "active" {
-		slog.Warn("starting libvirtd")
-		exec.Command("sudo", "systemctl", "start", "libvirtd").Run()
+		slog.Info("starting libvirtd")
+		if err := exec.Command("sudo", "systemctl", "start", "libvirtd").Run(); err != nil {
+			return fmt.Errorf("failed to start libvirtd: %w\n  Enable with: sudo systemctl enable --now libvirtd", err)
+		}
+	}
+
+	// Check default network is active (required for NAT mode)
+	if p.Config.NetworkMode.Mode == "Nat" {
+		if err := p.ensureDefaultNetwork(); err != nil {
+			return err
+		}
 	}
 
 	// Load vhost_vsock module
 	if err := exec.Command("sudo", "modprobe", "vhost_vsock").Run(); err != nil {
-		return fmt.Errorf("failed to load vhost_vsock kernel module")
+		return fmt.Errorf("failed to load vhost_vsock kernel module\n  Check: find /lib/modules/$(uname -r) -name '*vsock*'\n  You may need to reboot after a kernel update")
 	}
 
 	// Check QEMU user groups for GPU access
@@ -126,6 +141,44 @@ func (p *Provisioner) checkPrerequisites() error {
 	}
 
 	return nil
+}
+
+func (p *Provisioner) ensureDefaultNetwork() error {
+	// Check if default network is active
+	output, err := p.Virsh.RunSudoChecked("net-info", "default")
+	if err != nil {
+		// Network doesn't exist — try to define it
+		slog.Info("defining default network")
+		for _, path := range []string{
+			"/usr/share/libvirt/networks/default.xml",
+			"/etc/libvirt/qemu/networks/default.xml",
+		} {
+			if err := exec.Command("sudo", "virsh", "-c", "qemu:///system", "net-define", path).Run(); err == nil {
+				break
+			}
+		}
+	}
+
+	// Check if active
+	if output != "" && strings.Contains(output, "Active:") && !strings.Contains(output, "Active:          yes") {
+		slog.Info("starting default network")
+		if _, err := p.Virsh.RunSudoChecked("net-start", "default"); err != nil {
+			return fmt.Errorf("failed to start default network\n  Try: sudo virsh net-start default\n  Or:  sudo virsh net-define /usr/share/libvirt/networks/default.xml && sudo virsh net-start default")
+		}
+		p.Virsh.RunSudoChecked("net-autostart", "default")
+	}
+
+	return nil
+}
+
+// cleanup removes a partially created VM after a failed provisioning attempt.
+func (p *Provisioner) cleanup() {
+	slog.Info("cleaning up failed provisioning", "name", p.Config.Name)
+	p.Virsh.DestroyUnchecked(p.Config.Name)
+	p.Virsh.Undefine(p.Config.Name, true)
+	// Remove disk if it exists
+	diskPath := fmt.Sprintf("%s/%s.qcow2", p.Config.VMDir, p.Config.Name)
+	exec.Command("sudo", "rm", "-f", diskPath).Run()
 }
 
 func checkQemuUserGroups() {

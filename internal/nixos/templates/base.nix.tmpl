@@ -43,6 +43,19 @@
     {{.}}
 {{- end}}
   ];
+{{- if not .Config.Headless}}
+
+  # Force Wayland for all apps (Chromium/Electron, GTK, Qt)
+  environment.sessionVariables = {
+    NIXOS_OZONE_WL = "1";
+    GDK_BACKEND = "wayland";
+    QT_QPA_PLATFORM = "wayland";
+    SDL_VIDEODRIVER = "wayland";
+    CLUTTER_BACKEND = "wayland";
+    MOZ_ENABLE_WAYLAND = "1";
+    ELECTRON_OZONE_PLATFORM_HINT = "wayland";
+  };
+{{- end}}
 {{template "venus" .}}
 {{template "audio" .}}
 {{template "flatpak" .}}

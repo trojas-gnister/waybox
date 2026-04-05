@@ -1,0 +1,23 @@
+{ config, pkgs, ... }:
+{
+  hardware.graphics = {
+    enable = true;
+    extraPackages = with pkgs; [
+      mesa
+      vulkan-loader
+    ];
+  };
+
+  environment.systemPackages = with pkgs; [
+    mesa
+    vulkan-tools
+    vulkan-loader
+  ];
+
+  environment.sessionVariables = {
+    MESA_VK_WSI_PRESENT_MODE = "fifo";
+    VK_ICD_FILENAMES = "${pkgs.mesa}/share/vulkan/icd.d/virtio_icd.x86_64.json";
+  };
+
+  boot.kernelModules = [ "virtio_gpu" "udmabuf" ];
+}

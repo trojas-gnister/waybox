@@ -1,21 +1,6 @@
-# Binaries
-waybox
-*.exe
-
-# Go build cache
-/vendor/
-
-# IDE
-.idea/
-.vscode/
+/target
+Cargo.lock
 *.swp
 *.swo
 *~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Test output
-*.test
-coverage.out
+.env

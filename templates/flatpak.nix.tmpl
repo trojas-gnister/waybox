@@ -1,0 +1,23 @@
+{ config, pkgs, ... }:
+{
+  services.flatpak.enable = true;
+
+  environment.systemPackages = with pkgs; [ flatpak ];
+
+  systemd.services.waybox-flatpak-setup = {
+    description = "Install Flatpak apps on first boot";
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeShellScript "waybox-flatpak-install" ''
+        ${pkgs.flatpak}/bin/flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+{% for app in flatpak_packages %}
+        ${pkgs.flatpak}/bin/flatpak install -y flathub {{ app }} || true
+{% endfor %}
+      '';
+    };
+  };
+}

@@ -1,0 +1,46 @@
+{ config, pkgs, ... }:
+let
+  waybox-launcher = pkgs.writeShellScriptBin "waybox-launcher" ''
+    while true; do
+      ${pkgs.socat}/bin/socat \
+        VSOCK-LISTEN:{{ control_port }},reuseaddr,fork \
+        EXEC:"/run/current-system/sw/bin/waybox-exec",nofork
+    done
+  '';
+  waybox-exec = pkgs.writeShellScriptBin "waybox-exec" ''
+    read -r cmd
+    export WAYLAND_DISPLAY=wayland-1
+    export XDG_RUNTIME_DIR=/run/user/1000
+    export XDG_SESSION_TYPE=wayland
+    exec ${pkgs.waypipe}/bin/waypipe --vsock -s 2:{{ display_port }} server -- $cmd
+  '';
+  waybox-list-apps = pkgs.writeShellScriptBin "waybox-list-apps" ''
+    find /run/current-system/sw/share/applications \
+         /home/user/.local/share/applications \
+         /var/lib/flatpak/exports/share/applications \
+         -name '*.desktop' -print 2>/dev/null | while read -r f; do
+      name=$(grep -m1 '^Name=' "$f" | cut -d= -f2)
+      exec_cmd=$(grep -m1 '^Exec=' "$f" | cut -d= -f2 | sed 's/ %.*//')
+      icon=$(grep -m1 '^Icon=' "$f" | cut -d= -f2)
+      [ -n "$name" ] && [ -n "$exec_cmd" ] && echo "$name|$exec_cmd|$icon"
+    done
+  '';
+in {
+  environment.systemPackages = [ pkgs.waypipe waybox-launcher waybox-exec waybox-list-apps ];
+
+  systemd.services.waybox-launcher = {
+    description = "Waybox app launcher daemon";
+    after = [ "multi-user.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      User = "user";
+      ExecStart = "${waybox-launcher}/bin/waybox-launcher";
+      Restart = "always";
+      RestartSec = 1;
+      Environment = [
+        "WAYLAND_DISPLAY=wayland-1"
+        "XDG_RUNTIME_DIR=/run/user/1000"
+      ];
+    };
+  };
+}

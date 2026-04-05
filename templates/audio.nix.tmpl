@@ -1,0 +1,28 @@
+{ config, pkgs, ... }:
+{
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    pulse.enable = true;
+    wireplumber.enable = true;
+  };
+
+  systemd.services.waybox-audio-bridge = {
+    description = "Waybox PipeWire audio bridge over vsock";
+    after = [ "pipewire.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      User = "user";
+      ExecStart = "${pkgs.socat}/bin/socat VSOCK-CONNECT:2:{{ audio_port }} UNIX-CONNECT:/run/user/1000/pulse/native";
+      Restart = "always";
+      RestartSec = 2;
+      Environment = [
+        "XDG_RUNTIME_DIR=/run/user/1000"
+      ];
+    };
+  };
+
+  environment.sessionVariables = {
+    PULSE_SERVER = "unix:/run/user/1000/pulse/native";
+  };
+}

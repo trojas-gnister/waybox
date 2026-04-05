@@ -1,0 +1,32 @@
+{ config, pkgs, ... }:
+{
+  boot.loader.grub.enable = true;
+  boot.loader.grub.device = "/dev/vda";
+
+  networking.hostName = "{{ name }}";
+  networking.firewall.enable = false;
+
+  users.users.user = {
+    isNormalUser = true;
+    initialPassword = "{{ password }}";
+    extraGroups = [ "wheel" "video" "render" ];
+  };
+
+  environment.systemPackages = with pkgs; [
+    socat
+{% for pkg in system_packages %}
+    {{ pkg }}
+{% endfor %}
+  ];
+
+  boot.kernelModules = [ "vsock" "vmw_vsock_virtio_transport" ];
+
+  systemd.services."serial-getty@ttyS0" = {
+    enable = true;
+    wantedBy = [ "multi-user.target" ];
+  };
+
+  services.openssh.enable = false;
+
+  system.stateVersion = "24.11";
+}

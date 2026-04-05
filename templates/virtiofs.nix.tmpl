@@ -1,0 +1,10 @@
+{ config, pkgs, ... }:
+{
+{% for share in shared_folders %}
+  fileSystems."{{ share.guest_path }}" = {
+    device = "fs{{ loop.index0 }}";
+    fsType = "virtiofs";
+    options = [ {% if readonly %}"ro"{% else %}"rw"{% endif %} ];
+  };
+{% endfor %}
+}

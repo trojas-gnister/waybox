@@ -359,7 +359,7 @@ fn cmd_passwords() -> waybox::error::Result<()> {
         return Ok(());
     }
 
-    println!("{:<20} {}", "VM NAME", "PASSWORD");
+    println!("{:<20} PASSWORD", "VM NAME");
     println!("{}", "-".repeat(40));
 
     let mut entries: Vec<(&String, &String)> = store.passwords.iter().collect();
@@ -395,15 +395,9 @@ fn cmd_generate_shortcuts(name: &str) -> waybox::error::Result<()> {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /// Parse `host_path:guest_path` into a `SharedFolder`.
+/// Delegates to `validation::validate_share_path` which checks that both
+/// paths are present and absolute.
 fn parse_share(s: &str) -> waybox::error::Result<SharedFolder> {
-    match s.split_once(':') {
-        Some((host, guest)) if !host.is_empty() && !guest.is_empty() => Ok(SharedFolder {
-            host_path: host.to_string(),
-            guest_path: guest.to_string(),
-        }),
-        _ => Err(waybox::error::WayboxError::InvalidSharePath {
-            path: s.to_string(),
-            reason: "expected format host_path:guest_path".to_string(),
-        }),
-    }
+    let (host_path, guest_path) = waybox::config::validation::validate_share_path(s)?;
+    Ok(SharedFolder { host_path, guest_path })
 }

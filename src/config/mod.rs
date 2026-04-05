@@ -14,16 +14,11 @@ pub const VSOCK_CID_MIN: u32 = 3;
 
 // ── Supporting types ───────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub enum NetworkMode {
+    #[default]
     Nat,
     Airgapped,
-}
-
-impl Default for NetworkMode {
-    fn default() -> Self {
-        NetworkMode::Nat
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -121,12 +116,17 @@ fn dirs_path(kind: &str) -> Result<std::path::PathBuf> {
 // ── WayboxConfig methods ───────────────────────────────────────────────────
 
 impl WayboxConfig {
-    /// Validate the name and all USB device IDs stored in this config.
+    /// Validate the name, USB device IDs, and shared folder paths stored in
+    /// this config.
     pub fn validate(&self) -> Result<()> {
         validation::validate_vm_name(&self.name)?;
         for dev in &self.usb_devices {
             let id = dev.id();
             validation::validate_usb_id(&id)?;
+        }
+        for folder in &self.shared_folders {
+            let spec = format!("{}:{}", folder.host_path, folder.guest_path);
+            validation::validate_share_path(&spec)?;
         }
         Ok(())
     }

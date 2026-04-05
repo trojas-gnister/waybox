@@ -85,8 +85,6 @@ pub fn generate_domain_xml(config: &WayboxConfig) -> String {
              <console type='pty'>\n\
                <target type='serial' port='0'/>\n\
              </console>\n\
-         </devices>\n\
-         <devices>\n\
              <vsock model='virtio'>\n\
                <cid auto='no' val='{vsock_cid}'/>\n\
              </vsock>\n\
@@ -211,5 +209,19 @@ mod tests {
         let xml = generate_domain_xml(&base_config());
         assert!(xml.contains("test-vm.qcow2"));
         assert!(xml.contains("<driver name='qemu' type='qcow2'/>"));
+    }
+
+    #[test]
+    fn test_xml_single_devices_block() {
+        let xml = generate_domain_xml(&base_config());
+        // Libvirt only supports one <devices> block; vsock must be inside it.
+        let open_count = xml.matches("<devices>").count();
+        let close_count = xml.matches("</devices>").count();
+        assert_eq!(open_count, 1, "expected exactly one <devices> opening tag");
+        assert_eq!(close_count, 1, "expected exactly one </devices> closing tag");
+        // vsock must appear before </devices>
+        let vsock_pos = xml.find("<vsock").unwrap();
+        let close_devices_pos = xml.find("</devices>").unwrap();
+        assert!(vsock_pos < close_devices_pos, "vsock must be inside the <devices> block");
     }
 }

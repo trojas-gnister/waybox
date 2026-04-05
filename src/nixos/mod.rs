@@ -53,10 +53,18 @@ pub struct RenderedNixosConfig {
 }
 
 pub fn render_nixos_config(config: &WayboxConfig, password: &str) -> Result<RenderedNixosConfig> {
+    // Map raw package names to their canonical NixOS equivalents before
+    // passing them to the template (e.g. "python3" → "python3Full").
+    let mapped_packages: Vec<String> = config
+        .system_packages
+        .iter()
+        .map(|p| packages::map_package_name(p).to_string())
+        .collect();
+
     let base = BaseTemplate {
         name: &config.name,
         password,
-        system_packages: &config.system_packages,
+        system_packages: &mapped_packages,
     }.render()?;
 
     let waypipe = if !config.headless {

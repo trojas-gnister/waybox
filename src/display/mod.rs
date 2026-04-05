@@ -53,6 +53,16 @@ impl DisplaySession {
     pub fn list_apps(&self) -> Result<Vec<desktop::GuestApp>> {
         waypipe::list_guest_apps(self.vsock_cid)
     }
+
+    /// Return the OS process IDs of the waypipe and audio bridge processes,
+    /// if they were started.  Used by the provisioner to write a PID file
+    /// before detaching the session via `std::mem::forget`.
+    pub fn process_ids(&self) -> (Option<u32>, Option<u32>) {
+        (
+            self.waypipe_process.as_ref().map(|c| c.id()),
+            self.audio_process.as_ref().map(|c| c.id()),
+        )
+    }
 }
 
 impl Drop for DisplaySession {

@@ -98,7 +98,7 @@ impl LibvirtConnection {
             let (state_raw, _) = domain.get_state()?;
             infos.push(DomainInfo {
                 name,
-                state: DomainState::from(state_raw as u32),
+                state: DomainState::from(state_raw),
             });
         }
         Ok(infos)
@@ -107,7 +107,7 @@ impl LibvirtConnection {
     pub fn get_domain_state(&self, name: &str) -> Result<DomainState> {
         let domain = self.lookup(name)?;
         let (state_raw, _) = domain.get_state()?;
-        Ok(DomainState::from(state_raw as u32))
+        Ok(DomainState::from(state_raw))
     }
 
     fn lookup(&self, name: &str) -> Result<Domain> {
